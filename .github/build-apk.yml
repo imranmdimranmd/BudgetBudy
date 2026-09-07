@@ -1,0 +1,66 @@
+name: Build BudgetBudy APK
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+
+jobs:
+  build-apk:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # 1. Download source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Install Java 17
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      # 3. Install Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 4. Check versions
+      - name: Flutter Doctor
+        run: |
+          flutter --version
+          dart --version
+          java -version
+
+      # 5. Download Flutter dependencies
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      # 6. Clean previous build
+      - name: Flutter Clean
+        run: flutter clean
+
+      # 7. Get dependencies again after clean
+      - name: Flutter Pub Get
+        run: flutter pub get
+
+      # 8. Build APK
+      - name: Build Release APK
+        run: flutter build apk --release
+
+      # 9. Upload APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BudgetBudy-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
