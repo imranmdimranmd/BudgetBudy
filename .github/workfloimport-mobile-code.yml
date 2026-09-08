@@ -1,9 +1,6 @@
-name: Import Mobile Code
+name: Import Mobile Code1
 
 on:
-  pull_request:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       target_branch:
@@ -23,42 +20,7 @@ permissions:
   contents: write
 
 jobs:
-  import-code:
-    name: Import Mobile Project
-    runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: main
-
-      - name: Check uploaded ZIP
-        run: |
-          echo "ZIP file: ${{ inputs.zip_path }}"
-
-          if [ ! -f "${{ inputs.zip_path }}" ]; then
-            echo "ERROR: ZIP file not found"
-            exit 1
-          fi
-
-      - name: Prepare temporary directory
-        run: |
-          rm -rf /tmp/budgetbudy-import
-          mkdir -p /tmp/budgetbudy-import
-
-      - name: Extract ZIP
-        run: |
-          unzip -q "${{ inputs.zip_path }}" -d /tmp/budgetbudy-import
-
-          echo "Extracted files:"
-          find /tmp/budgetbudy-import -maxdepth 3 -type f | head -100
-
-      - name: Find Flutter project
-        id: project
-        run: |
-          PROJECT_DIR=""
 
           if [ -f "/tmp/budgetbudy-import/pubspec.yaml" ]; then
             PROJECT_DIR="/tmp/budgetbudy-import"
