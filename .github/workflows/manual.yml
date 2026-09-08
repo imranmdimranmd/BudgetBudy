@@ -3,10 +3,6 @@ name: Build BudgetBudy APK
 on:
   workflow_dispatch:
 
-  push:
-    branches:
-      - main
-
 jobs:
   build-apk:
 
