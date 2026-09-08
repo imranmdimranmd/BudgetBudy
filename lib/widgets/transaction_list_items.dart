@@ -20,7 +20,6 @@ class _TransactionListItemsState extends State<TransactionListItems> {
   Widget build(BuildContext context) {
     return Card(
         elevation: 5,
-        color: Colors.grey[50],
         child: Row(
           children: <Widget>[
             Container(
@@ -35,7 +34,7 @@ class _TransactionListItemsState extends State<TransactionListItems> {
               decoration: BoxDecoration(
                 border: Border.all(
                   width: 2,
-                  color: Colors.grey.shade400,
+                  color: Theme.of(context).primaryColor,
                 ),
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(15),
@@ -69,28 +68,21 @@ class _TransactionListItemsState extends State<TransactionListItems> {
                       context: context,
                       barrierDismissible: false,
                       builder: (context) => AlertDialog(
-                        backgroundColor: Colors.grey[50],
                         title: const Text('Are you sure'),
                         content: const Text(
                             'Do you really want to delete this transaction?'),
                         actions: [
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.red,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            onPressed: () {
-                              widget.dltTrxItem(widget.trx.id);
-                              Navigator.pop(context);
-                            },
-                            child: const Text(
-                              'Yes',
-                              style: TextStyle(fontSize: 20),
-                            ),
-                          ),
+                          TextButton(
+                              onPressed: () {
+                                widget.dltTrxItem(widget.trx.id);
+                                Navigator.pop(context);
+                              },
+                              child: Text(
+                                'Yes',
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    color: Theme.of(context).primaryColor),
+                              )),
                           TextButton(
                               onPressed: () {
                                 Navigator.pop(context);

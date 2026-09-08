@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import './screens/home_screen.dart';
 import './screens/new_transaction.dart';
 import './models/transaction.dart';
+import './models/categories.dart';
+import './screens/categories_screen.dart';
 import './screens/party_list_screen.dart';
 
 import 'package:provider/provider.dart';
@@ -24,8 +26,11 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-        create: (context) => Transactions(),
+    return MultiProvider(
+        providers: [
+          ChangeNotifierProvider(create: (_) => Transactions()),
+          ChangeNotifierProvider(create: (_) => Categories()..load()),
+        ],
         builder: (context, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -43,32 +48,31 @@ class MyApp extends StatelessWidget {
                     headlineLarge: const TextStyle(
                       fontFamily: 'OpenSans',
                       fontSize: 18,
-                      color: Colors.black,
+                      color:
+                          Color(0xFF1D2125), // dark grey instead of pure black
                       fontWeight: FontWeight.bold,
                     ),
                     labelLarge: const TextStyle(
-                      color: Colors.black,
+                      color: Color(0xFF1D2125),
                       fontWeight: FontWeight.bold,
                     ),
                   ),
               appBarTheme: const AppBarTheme(
                 backgroundColor: Colors.white,
                 elevation: 0,
-                iconTheme: IconThemeData(color: Colors.black),
+                iconTheme: IconThemeData(color: Color(0xFF1D2125)),
                 titleTextStyle: TextStyle(
                   fontFamily: 'OpenSans',
                   fontSize: 24,
-                  color: Colors.black,
+                  color: Color(0xFF1D2125),
                 ),
-              ),
-              datePickerTheme: DatePickerThemeData(
-                backgroundColor: Colors.grey[50],
               ),
             ),
             routes: {
               HomeScreen.routeName: (_) => HomeScreen(),
               NewTransaction.routeName: (_) => NewTransaction(),
               PartyListScreen.routeName: (_) => const PartyListScreen(),
+              CategoriesScreen.routeName: (_) => const CategoriesScreen(),
             },
           );
         });

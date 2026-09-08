@@ -4,7 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import 'package:daily_spending/models/transaction.dart';
-import 'package:daily_spending/constants/categories.dart';
+import 'package:daily_spending/models/categories.dart';
 
 class NewTransaction extends StatefulWidget {
   static const routeName = '/new-transaction';
@@ -117,71 +117,52 @@ class _NewTransactionState extends State<NewTransaction> {
                 ),
                 onPressed: () {
                   FocusScope.of(context).unfocus();
-                  
-                  // Validate title
-                  if (inputTitleController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                        content: Text(
-                          "Please enter a title!",
-                          style: Theme.of(context).textTheme.headlineLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  
-                  // Validate amount with safe parsing
-                  final amountText = inputAmountController.text.trim();
-                  final enteredAmount = int.tryParse(amountText);
-                  
-                  if (enteredAmount == null || enteredAmount < 0) {
-                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        backgroundColor: Theme.of(context).colorScheme.error,
-                        content: Text(
-                          "Please enter a valid amount!",
-                          style: Theme.of(context).textTheme.headlineLarge,
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  
-                  final enteredTitle = inputTitleController.text.trim();
+                  final enteredAmount = int.tryParse(inputAmountController.text);
+                  if (inputTitleController.text.trim().isNotEmpty &&
+                      enteredAmount != null &&
+                      enteredAmount >= 0) {
+                    final enteredTitle = inputTitleController.text.trim();
 
-                  transactions.addTransactions(
-                    Transaction(
-                      id: DateTime.now().toString(),
-                      title: enteredTitle,
-                      amount: enteredAmount,
-                      date: _selectedDate,
-                      category: dropdownValue,
-                    ),
-                  );
-                  //Navigator.of(context).pop();
-                  inputTitleController.clear();
-                  inputAmountController.clear();
-                  setState(() {
-                    // _selectedDate = DateTime.now();
-                    dropdownValue = 'Other';
-                  });
-                  ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      backgroundColor: Theme.of(context).primaryColorLight,
-                      content: Text(
-                        "Data added Succesfully!",
-                        style: Theme.of(context).textTheme.headlineLarge,
-                        textAlign: TextAlign.center,
+                    transactions.addTransactions(
+                      Transaction(
+                        id: DateTime.now().toString(),
+                        title: enteredTitle,
+                        amount: enteredAmount,
+                        date: _selectedDate,
+                        category: dropdownValue,
                       ),
-                    ),
-                  );
+                    );
+                    //Navigator.of(context).pop();
+                    inputTitleController.clear();
+                    inputAmountController.clear();
+                    setState(() {
+                      // _selectedDate = DateTime.now();
+                      dropdownValue = 'Other';
+                    });
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Theme.of(context).primaryColorLight,
+                        content: Text(
+                          "Data added Succesfully!",
+                          style: Theme.of(context).textTheme.headlineLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  } else {
+                    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        backgroundColor: Theme.of(context).colorScheme.error,
+                        content: Text(
+                          "Fields can't be empty!",
+                          style: Theme.of(context).textTheme.headlineLarge,
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
                 },
               ),
             ],
@@ -192,36 +173,55 @@ class _NewTransactionState extends State<NewTransaction> {
   }
 
   Widget dropDownToSelectMonth(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          'Category',
-        ),
-        DropdownButton<String>(
-          value: dropdownValue,
-          icon: const Icon(
-            Icons.expand_more,
-          ),
-          elevation: 16,
-          style: TextStyle(color: Theme.of(context).primaryColorDark),
-          underline: Container(
-            height: 2,
-            color: Theme.of(context).primaryColor,
-          ),
-          onChanged: (String? newValue) {
-            setState(() {
-              dropdownValue = newValue ?? 'Other';
-            });
-          },
-          items: categories.map<DropdownMenuItem<String>>((String value) {
-            return DropdownMenuItem<String>(
-              value: value,
-              child: Text(value),
-            );
-          }).toList(),
-        ),
-      ],
+    return Consumer<Categories>(
+      builder: (context, categoryProvider, child) {
+        final available = categoryProvider.categories;
+        final selected = available.contains(dropdownValue)
+            ? dropdownValue
+            : (available.isNotEmpty ? available.first : null);
+
+        if (selected != null && selected != dropdownValue) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => dropdownValue = selected);
+            }
+          });
+        }
+
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text('Category'),
+            if (available.isEmpty)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              DropdownButton<String>(
+                value: selected,
+                icon: const Icon(Icons.expand_more),
+                elevation: 16,
+                style: TextStyle(color: Theme.of(context).primaryColorDark),
+                underline: Container(
+                  height: 2,
+                  color: Theme.of(context).primaryColor,
+                ),
+                onChanged: (String? newValue) {
+                  if (newValue == null) return;
+                  setState(() => dropdownValue = newValue);
+                },
+                items: available.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+              ),
+          ],
+        );
+      },
     );
   }
 }

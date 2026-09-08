@@ -13,7 +13,7 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isGave = txn.type == TransactionType.gave;
-    final color = isGave ? const Color(0xFFDF1837) : const Color(0xFF029856);
+    final color = isGave ? Colors.red : Colors.green;
 
     return GestureDetector(
       onTap: () async {
@@ -76,8 +76,7 @@ class TransactionTile extends StatelessWidget {
                         txn.note,
                         style: TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.grey.shade900,
+                          color: Colors.grey.shade700,
                         ),
                       ),
                     ],
