@@ -5,28 +5,167 @@ name: Manual workflow
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
 on:
+# A workflow run is made up of one or more jobs that can run sequentially or in paralle
   workflow_dispatch:
-    # Inputs the workflow accepts.
     inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Person to greet'
-        # Default value if no value is explicitly provided
-        default: 'World'
-        # Input has to be provided for the workflow to run
+      target_branch:
+        description: "Branch to push the imported code to"
         required: true
-        # The data type of the input
-        type: string
+        default: "feature/mobile-import"
+      zip_path:
+        description: "ZIP path inside the repository"
+        required: true
+        default: "mobile-upload/BudgetBudy.zip"
+      commit_message:
+        description: "Git commit message"
+        required: true
+        default: "Import code from mobile"
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: write
+
 jobs:
-  # This workflow contains a single job called "greet"
-  greet:
-    # The type of runner that the job will run on
+  import-code:
+    name: Import Mobile Project
     runs-on: ubuntu-latest
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    # Runs a single command using the runners shell
-    - name: Send greeting
-      run: echo "Hello ${{ inputs.name }}"
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Check uploaded ZIP
+        run: |
+          echo "ZIP file: ${{ inputs.zip_path }}"
+
+          if [ ! -f "${{ inputs.zip_path }}" ]; then
+            echo "ERROR: ZIP file not found"
+            exit 1
+          fi
+
+      - name: Prepare temporary directory
+        run: |
+          rm -rf /tmp/budgetbudy-import
+          mkdir -p /tmp/budgetbudy-import
+
+      - name: Extract ZIP
+        run: |
+          unzip -q "${{ inputs.zip_path }}" -d /tmp/budgetbudy-import
+
+          echo "Extracted files:"
+          find /tmp/budgetbudy-import -maxdepth 3 -type f | head -100
+
+      - name: Find Flutter project
+        id: project
+        run: |
+          PROJECT_DIR=""
+
+          if [ -f "/tmp/budgetbudy-import/pubspec.yaml" ]; then
+            PROJECT_DIR="/tmp/budgetbudy-import"
+          else
+            FOUND=$(find /tmp/budgetbudy-import -name pubspec.yaml -type f | head -1)
+
+            if [ -n "$FOUND" ]; then
+              PROJECT_DIR="$(dirname "$FOUND")"
+            fi
+          fi
+
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: pubspec.yaml not found"
+            exit 1
+          fi
+
+          echo "Flutter project found at: $PROJECT_DIR"
+
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Validate Flutter project
+        run: |
+          PROJECT_DIR="${{ steps.project.outputs.project_dir }}"
+
+          if [ ! -d "$PROJECT_DIR/lib" ]; then
+            echo "ERROR: lib directory not found"
+            exit 1
+          fi
+
+          if [ ! -d "$PROJECT_DIR/android" ]; then
+            echo "ERROR: android directory not found"
+            exit 1
+          fi
+
+          echo "Flutter project validation successful"
+
+      - name: Checkout target branch
+        run: |
+          TARGET_BRANCH="${{ inputs.target_branch }}"
+
+          git fetch origin
+
+          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
+            echo "Target branch exists"
+
+            git checkout "$TARGET_BRANCH"
+            git pull origin "$TARGET_BRANCH"
+          else
+            echo "Target branch does not exist"
+            echo "Creating branch from main"
+
+            git checkout -b "$TARGET_BRANCH"
+          fi
+
+      - name: Replace project files
+        run: |
+          PROJECT_DIR="${{ steps.project.outputs.project_dir }}"
+
+          echo "Importing project from:"
+          echo "$PROJECT_DIR"
+
+          # Remove existing project files except GitHub workflow
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name ".git" \
+            ! -name ".github" \
+            ! -name "mobile-upload" \
+            -exec rm -rf {} +
+
+          # Copy new project
+          cp -a "$PROJECT_DIR"/. .
+
+          echo "Imported project:"
+          ls -la
+
+      - name: Remove uploaded ZIP
+        run: |
+          rm -f "${{ inputs.zip_path }}" || true
+
+      - name: Show Git changes
+        run: |
+          git status
+          git diff --stat
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "${{ inputs.commit_message }}"
+
+      - name: Push changes
+        run: |
+          git push origin "${{ inputs.target_branch }}"
+
+      - name: Import completed
+        run: |
+          echo "========================================"
+          echo "Mobile code import completed successfully"
+          echo "========================================"
+          echo "Branch: ${{ inputs.target_branch }}"
+          echo "Commit: ${{ inputs.commit_message }}"
