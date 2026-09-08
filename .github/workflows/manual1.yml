@@ -1,29 +1,25 @@
-# This is a basic workflow that is manually triggered
+name: Import Mobile Code
 
-name: Manual workflow
-
-# Controls when the action will run. Workflow runs when manually triggered using the UI
-# or API.
 on:
-# A workflow run is made up of one or more jobs that can run sequentially or in paralle
   workflow_dispatch:
     inputs:
       target_branch:
         description: "Branch to push the imported code to"
         required: true
         default: "feature/mobile-import"
+
       zip_path:
-        description: "ZIP path inside the repository"
+        description: "ZIP file path inside the repository"
         required: true
-        default: "mobile-upload/BudgetBudy.zip"
+        default: "mobile-upload/BudgetBudy-Latest-Mobile-GitHub.zip"
+
       commit_message:
         description: "Git commit message"
         required: true
-        default: "Import code from mobile"
+        default: "Import latest mobile code"
 
 permissions:
   contents: write
-  workflows: write
 
 jobs:
   import-code:
@@ -31,142 +27,298 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+
+      # =========================================================
+      # 1. Checkout main
+      # =========================================================
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: main
 
+      # =========================================================
+      # 2. Check that ZIP exists
+      # =========================================================
       - name: Check uploaded ZIP
         run: |
-          echo "ZIP file: ${{ inputs.zip_path }}"
+          ZIP_PATH="${{ inputs.zip_path }}"
 
-          if [ ! -f "${{ inputs.zip_path }}" ]; then
-            echo "ERROR: ZIP file not found"
+          echo "Checking ZIP file:"
+          echo "$ZIP_PATH"
+
+          if [ ! -f "$ZIP_PATH" ]; then
+            echo "ERROR: ZIP file not found:"
+            echo "$ZIP_PATH"
+            echo ""
+            echo "Files inside mobile-upload:"
+            ls -la mobile-upload || true
             exit 1
           fi
 
-      - name: Prepare temporary directory
+          echo "ZIP file found successfully."
+
+      # =========================================================
+      # 3. Extract ZIP
+      # =========================================================
+      - name: Extract ZIP
         run: |
           rm -rf /tmp/budgetbudy-import
           mkdir -p /tmp/budgetbudy-import
 
-      - name: Extract ZIP
-        run: |
-          unzip -q "${{ inputs.zip_path }}" -d /tmp/budgetbudy-import
+          echo "Extracting:"
+          echo "${{ inputs.zip_path }}"
 
+          unzip -q "${{ inputs.zip_path }}" \
+            -d /tmp/budgetbudy-import
+
+          echo "ZIP extracted successfully."
+
+          echo ""
           echo "Extracted files:"
-          find /tmp/budgetbudy-import -maxdepth 3 -type f | head -100
+          find /tmp/budgetbudy-import -maxdepth 2 -type f | head -100
 
+      # =========================================================
+      # 4. Find Flutter project
+      # =========================================================
       - name: Find Flutter project
         id: project
         run: |
-          PROJECT_DIR=""
-
           if [ -f "/tmp/budgetbudy-import/pubspec.yaml" ]; then
             PROJECT_DIR="/tmp/budgetbudy-import"
           else
-            FOUND=$(find /tmp/budgetbudy-import -name pubspec.yaml -type f | head -1)
+            FOUND=$(find /tmp/budgetbudy-import \
+              -name "pubspec.yaml" \
+              -type f \
+              -print \
+              -quit)
 
-            if [ -n "$FOUND" ]; then
-              PROJECT_DIR="$(dirname "$FOUND")"
+            if [ -z "$FOUND" ]; then
+              echo "ERROR: pubspec.yaml was not found inside ZIP."
+              exit 1
             fi
+
+            PROJECT_DIR="$(dirname "$FOUND")"
           fi
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: pubspec.yaml not found"
-            exit 1
-          fi
+          echo "Flutter project found at:"
+          echo "$PROJECT_DIR"
 
-          echo "Flutter project found at: $PROJECT_DIR"
-
-          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
-
-      - name: Validate Flutter project
-        run: |
-          PROJECT_DIR="${{ steps.project.outputs.project_dir }}"
-
+          # Verify Flutter project structure
           if [ ! -d "$PROJECT_DIR/lib" ]; then
-            echo "ERROR: lib directory not found"
+            echo "ERROR: lib directory not found."
             exit 1
           fi
 
           if [ ! -d "$PROJECT_DIR/android" ]; then
-            echo "ERROR: android directory not found"
+            echo "ERROR: android directory not found."
             exit 1
           fi
 
-          echo "Flutter project validation successful"
+          if [ ! -f "$PROJECT_DIR/pubspec.yaml" ]; then
+            echo "ERROR: pubspec.yaml not found."
+            exit 1
+          fi
 
+          echo "Flutter project validation successful."
+
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+
+      # =========================================================
+      # 5. Checkout or create target branch
+      # =========================================================
       - name: Checkout target branch
         run: |
           TARGET_BRANCH="${{ inputs.target_branch }}"
 
+          echo "Target branch:"
+          echo "$TARGET_BRANCH"
+
           git fetch origin
 
-          if git ls-remote --exit-code --heads origin "$TARGET_BRANCH" > /dev/null 2>&1; then
-            echo "Target branch exists"
+          if git ls-remote \
+            --exit-code \
+            --heads origin "$TARGET_BRANCH" \
+            > /dev/null 2>&1; then
+
+            echo "Target branch already exists."
 
             git checkout "$TARGET_BRANCH"
-            git pull origin "$TARGET_BRANCH"
+
+            git pull --ff-only origin "$TARGET_BRANCH"
+
           else
-            echo "Target branch does not exist"
-            echo "Creating branch from main"
+
+            echo "Target branch does not exist."
+
+            echo "Creating branch from main..."
 
             git checkout -b "$TARGET_BRANCH"
+
           fi
 
-      - name: Replace project files
+          echo ""
+          echo "Current branch:"
+          git branch --show-current
+
+      # =========================================================
+      # 6. Remove old application files
+      #
+      # IMPORTANT:
+      #
+      # .git           -> PROTECTED
+      # .github        -> PROTECTED
+      # mobile-upload  -> PROTECTED
+      #
+      # Everything else can be replaced by the ZIP.
+      # =========================================================
+      - name: Remove old application files
+        run: |
+          echo "Removing old application files..."
+
+          find . \
+            -mindepth 1 \
+            -maxdepth 1 \
+            ! -name ".git" \
+            ! -name ".github" \
+            ! -name "mobile-upload" \
+            -exec rm -rf {} +
+
+          echo ""
+          echo "Old application files removed."
+
+          echo ""
+          echo "Protected directories:"
+          echo ".github"
+          echo "mobile-upload"
+
+      # =========================================================
+      # 7. Import mobile project
+      #
+      # IMPORTANT:
+      #
+      # .github is EXCLUDED
+      # .git is EXCLUDED
+      # mobile-upload is EXCLUDED
+      #
+      # Therefore the ZIP cannot overwrite GitHub Actions.
+      # =========================================================
+      - name: Import mobile project
         run: |
           PROJECT_DIR="${{ steps.project.outputs.project_dir }}"
 
           echo "Importing project from:"
           echo "$PROJECT_DIR"
 
-          # Remove existing project files except GitHub workflow
-          find . -mindepth 1 -maxdepth 1 \
-            ! -name ".git" \
-            ! -name ".github" \
-            ! -name "mobile-upload" \
-            -exec rm -rf {} +
+          rsync -av \
+            --exclude=".git/" \
+            --exclude=".github/" \
+            --exclude="mobile-upload/" \
+            "$PROJECT_DIR"/ ./
 
-          # Copy new project
-          cp -a "$PROJECT_DIR"/. .
+          echo ""
+          echo "Mobile project imported successfully."
 
-          echo "Imported project:"
-          ls -la
-
+      # =========================================================
+      # 8. Remove uploaded ZIP from working tree
+      # =========================================================
       - name: Remove uploaded ZIP
         run: |
-          rm -f "${{ inputs.zip_path }}" || true
+          ZIP_PATH="${{ inputs.zip_path }}"
 
+          echo "Removing uploaded ZIP from working tree:"
+          echo "$ZIP_PATH"
+
+          rm -f "$ZIP_PATH" || true
+
+          echo "Uploaded ZIP removed."
+
+      # =========================================================
+      # 9. Verify GitHub Actions were NOT modified
+      # =========================================================
+      - name: Verify GitHub Actions
+        run: |
+          echo "Verifying GitHub Actions directory..."
+
+          if [ ! -d ".github" ]; then
+            echo "ERROR: .github directory is missing!"
+            exit 1
+          fi
+
+          if [ ! -d ".github/workflows" ]; then
+            echo "ERROR: .github/workflows directory is missing!"
+            exit 1
+          fi
+
+          echo ""
+          echo "Existing GitHub workflows:"
+          find .github/workflows \
+            -maxdepth 1 \
+            -type f \
+            \( -name "*.yml" -o -name "*.yaml" \) \
+            -print
+
+          echo ""
+          echo "GitHub Actions directory successfully preserved."
+
+      # =========================================================
+      # 10. Show changes
+      # =========================================================
       - name: Show Git changes
         run: |
+          echo "========================================"
+          echo "Git Status"
+          echo "========================================"
+
           git status
+
+          echo ""
+          echo "========================================"
+          echo "Git Diff Summary"
+          echo "========================================"
+
           git diff --stat
 
+      # =========================================================
+      # 11. Commit changes
+      # =========================================================
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
 
           git add -A
 
           if git diff --cached --quiet; then
-            echo "No changes to commit"
+            echo "No changes detected."
             exit 0
           fi
 
-          git commit -m "${{ inputs.commit_message }}"
+          git commit \
+            -m "${{ inputs.commit_message }}"
 
-      - name: Push changes
-        run: |
-          git push origin "${{ inputs.target_branch }}"
+          echo "Changes committed successfully."
 
-      - name: Import completed
+      # =========================================================
+      # 12. Push target branch
+      # =========================================================
+      - name: Push target branch
         run: |
+          TARGET_BRANCH="${{ inputs.target_branch }}"
+
+          echo "Pushing changes to:"
+          echo "$TARGET_BRANCH"
+
+          git push origin "$TARGET_BRANCH"
+
+          echo ""
           echo "========================================"
-          echo "Mobile code import completed successfully"
+          echo "IMPORT COMPLETED SUCCESSFULLY"
           echo "========================================"
-          echo "Branch: ${{ inputs.target_branch }}"
-          echo "Commit: ${{ inputs.commit_message }}"
+          echo "Target branch : $TARGET_BRANCH"
+          echo "ZIP file      : ${{ inputs.zip_path }}"
+          echo "Commit message: ${{ inputs.commit_message }}"
+          echo ""
+          echo "GitHub Actions were preserved."
+          echo "========================================"
