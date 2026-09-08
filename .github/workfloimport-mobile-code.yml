@@ -1,6 +1,9 @@
 name: Import Mobile Code
 
 on:
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
     inputs:
       target_branch:
