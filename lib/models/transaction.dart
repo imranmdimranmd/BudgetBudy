@@ -63,8 +63,7 @@ class Transactions with ChangeNotifier {
         return true;
       }
       return false;
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList();
   }
 
   List<Transaction> yearlyTransactions(String year) {
@@ -75,8 +74,7 @@ class Transactions with ChangeNotifier {
         return true;
       }
       return false;
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList();
   }
 
   List<Transaction> dailyTransactions() {
@@ -90,8 +88,7 @@ class Transactions with ChangeNotifier {
         return true;
       }
       return false;
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList();
   }
 
   List<Transaction> get rescentTransactions {
@@ -99,8 +96,7 @@ class Transactions with ChangeNotifier {
       return tx.date.isAfter(DateTime.now().subtract(
         Duration(days: 7),
       ));
-    }).toList()
-      ..sort((a, b) => b.date.compareTo(a.date));
+    }).toList();
   }
 
   Future<void> fetchTransactions() async {

@@ -1,4 +1,4 @@
-List<String> categories = [
+const List<String> defaultCategories = [
   'Food',
   'Social Life',
   'Self-development',

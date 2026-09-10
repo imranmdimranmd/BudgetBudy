@@ -59,6 +59,10 @@ It's designed to streamline **personal finance management**, reduce manual calcu
 
   Add expenses with title, amount, date, and category for better organization.
 
+- 🏷️ **Custom Categories**
+
+  Add your own categories from the Categories screen. Categories are stored in SQLite and remain available after restarting the app. Default categories cannot be deleted.
+
 - 👥 **Khatabook-Style Party Ledger**
 
   Create parties (contacts) and track "gave" or "got" transactions per party.

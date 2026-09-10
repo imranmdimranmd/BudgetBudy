@@ -53,14 +53,7 @@ class DBHelper {
 
   static Future<List<Party>> getAllParties() async {
     final db = await database;
-    // Get all parties with their latest transaction date
-    final res = await db.rawQuery('''
-      SELECT p.*, MAX(t.date) as lastTransactionDate
-      FROM parties p
-      LEFT JOIN transactions t ON p.id = t.partyId
-      GROUP BY p.id
-      ORDER BY lastTransactionDate DESC NULLS LAST, p.name COLLATE NOCASE
-    ''');
+    final res = await db.query('parties', orderBy: 'name COLLATE NOCASE');
     return res.map((e) => Party.fromMap(e)).toList();
   }
 

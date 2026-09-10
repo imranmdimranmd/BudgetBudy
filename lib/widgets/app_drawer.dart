@@ -1,5 +1,6 @@
 import 'package:daily_spending/screens/home_screen.dart';
 import 'package:daily_spending/screens/party_list_screen.dart';
+import 'package:daily_spending/screens/categories_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -39,6 +40,13 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   ListTile(
+                    leading: const Icon(Icons.category_outlined),
+                    title: const Text("Categories"),
+                    onTap: () {
+                      Navigator.of(context).pushNamed(CategoriesScreen.routeName);
+                    },
+                  ),
+                  ListTile(
                     leading: const Icon(Icons.book),
                     title: const Text("Khatabook"),
                     onTap: () {
@@ -65,7 +73,6 @@ class AppDrawer extends StatelessWidget {
                             context: context,
                             builder: (BuildContext context) {
                               return AlertDialog(
-                                backgroundColor: Colors.grey[50],
                                 title: Text('Contact Us'),
                                 content: Column(
                                   mainAxisSize: MainAxisSize.min,
@@ -100,7 +107,6 @@ class AppDrawer extends StatelessWidget {
                           context: context,
                           builder: (BuildContext context) {
                             return AlertDialog(
-                              backgroundColor: Colors.grey[50],
                               title: Text('Contact Us'),
                               content: Column(
                                 mainAxisSize: MainAxisSize.min,
