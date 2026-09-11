@@ -53,10 +53,10 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
-      # 8. Ensure Gradle wrapper uses the valid Gradle distribution URL
+      # 8. Ensure Gradle wrapper uses a valid Gradle distribution URL
       - name: Fix Gradle wrapper URL
         run: |
-          sed -i 's#^distributionUrl=.*$#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.14.0-all.zip#' android/gradle/wrapper/gradle-wrapper.properties
+          sed -i 's#^distributionUrl=.*$#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7.2-all.zip#' android/gradle/wrapper/gradle-wrapper.properties
           cat android/gradle/wrapper/gradle-wrapper.properties
 
       # 9. Build APK
