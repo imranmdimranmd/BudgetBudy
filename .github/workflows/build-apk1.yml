@@ -1,4 +1,4 @@
-name: Build BudgetBudy APK
+name: build-apk1
 
 on:
   workflow_dispatch:
