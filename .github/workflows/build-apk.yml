@@ -3,10 +3,10 @@ name: build-apk
 on:
   workflow_dispatch:
 
-  # push:
-  #   branches:
-  #     - main
-  #     - "feature/**"
+  push:
+    branches:
+      - main
+      - "feature/**"
 
 jobs:
   build-apk:
