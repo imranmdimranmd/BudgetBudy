@@ -1,12 +1,12 @@
-name: Build BudgetBudy APK
+name: Build BudgetBudy APK1
 
 on:
   workflow_dispatch:
 
-  push:
-    branches:
-      - main
-      - "feature/**"
+  # push:
+  #   branches:
+  #     - main
+  #     - "feature/**"
 
 jobs:
   build-apk:
@@ -27,7 +27,13 @@ jobs:
           java-version: '17'
           cache: gradle
 
-      # 3. Install Flutter
+      # 3. Install and configure Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7.2
+
+      # 4. Install Flutter
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -53,13 +59,7 @@ jobs:
       - name: Flutter Pub Get
         run: flutter pub get
 
-      # 8. Ensure Gradle wrapper uses a valid Gradle distribution URL
-      - name: Fix Gradle wrapper URL
-        run: |
-          sed -i 's#^distributionUrl=.*$#distributionUrl=https\\://services.gradle.org/distributions/gradle-8.7.2-all.zip#' android/gradle/wrapper/gradle-wrapper.properties
-          cat android/gradle/wrapper/gradle-wrapper.properties
-
-      # 9. Build APK
+      # 8. Build APK
       - name: Build Release APK
         run: flutter build apk --release
 
