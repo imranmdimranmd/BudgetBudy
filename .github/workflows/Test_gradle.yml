@@ -58,7 +58,6 @@ jobs:
       - name: Check Java and Gradle versions
         run: |
           java -version
-          ./gradlew --version
 
       # --------------------------------------------------
       # Run unit tests
