@@ -1,0 +1,102 @@
+name: Import Mobile Upload
+
+# Workflow: from your phone, switch to the "mobile-uploads" branch in the
+# GitHub app/web UI and upload a single .zip file containing your full
+# project source (lib/, pubspec.yaml, etc.). This pipeline then:
+#   1. Wipes the repo (except .github/) on a new branch cut from main.
+#   2. Extracts your zip into that branch.
+#   3. Opens a PR from the new branch into main.
+#   4. Removes the processed zip from mobile-uploads so it's ready for next time.
+
+on:
+  push:
+    branches: [ mobile-uploads ]
+    paths:
+      - '**.zip'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  import-zip:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mobile-uploads branch
+        uses: actions/checkout@v4
+        with:
+          ref: mobile-uploads
+          fetch-depth: 0
+
+      - name: Locate uploaded zip
+        id: find_zip
+        run: |
+          set -euo pipefail
+          ZIP_FILE=$(find . -maxdepth 2 -iname "*.zip" -not -path "./.git/*" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "No .zip file found on mobile-uploads branch." >&2
+            exit 1
+          fi
+          echo "zip_path=$ZIP_FILE" >> "$GITHUB_OUTPUT"
+          echo "Found zip: $ZIP_FILE"
+
+      - name: Stage zip outside the working tree
+        run: |
+          mkdir -p /tmp/upload-stage
+          cp "${{ steps.find_zip.outputs.zip_path }}" /tmp/upload-stage/upload.zip
+
+      - name: Create import branch from main
+        id: new_branch
+        run: |
+          set -euo pipefail
+          git fetch origin main
+          BRANCH="import/mobile-upload-$(date +%Y%m%d-%H%M%S)-${{ github.run_number }}"
+          git checkout -b "$BRANCH" origin/main
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Remove all existing files except .github
+        run: |
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' ! -name '.github' -exec rm -rf {} +
+
+      - name: Extract zip contents into the branch
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/upload-stage/extracted
+          unzip -o /tmp/upload-stage/upload.zip -d /tmp/upload-stage/extracted
+          shopt -s nullglob dotglob
+          entries=(/tmp/upload-stage/extracted/*)
+          if [ "${#entries[@]}" -eq 1 ] && [ -d "${entries[0]}" ]; then
+            src="${entries[0]}"
+          else
+            src="/tmp/upload-stage/extracted"
+          fi
+          cp -a "$src"/. .
+
+      - name: Commit imported source
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Import mobile upload: ${{ steps.find_zip.outputs.zip_path }}"
+
+      - name: Push import branch
+        run: git push origin "HEAD:${{ steps.new_branch.outputs.branch }}"
+
+      - name: Open pull request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "${{ steps.new_branch.outputs.branch }}" \
+            --title "Import mobile upload (${{ steps.new_branch.outputs.branch }})" \
+            --body "Automated import of the zip uploaded to \`mobile-uploads\`. Review the diff before merging."
+
+      - name: Remove processed zip from mobile-uploads
+        run: |
+          set -euo pipefail
+          git checkout mobile-uploads
+          git rm -f "${{ steps.find_zip.outputs.zip_path }}"
+          git commit -m "Remove processed upload zip [skip ci]"
+          git push origin mobile-uploads
