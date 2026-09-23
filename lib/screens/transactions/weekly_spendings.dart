@@ -8,7 +8,6 @@ import 'package:daily_spending/screens/statistics/pie_chart.dart';
 import 'package:daily_spending/screens/statistics/weekly_stats.dart';
 import 'package:daily_spending/widgets/no_trancaction.dart';
 import 'package:daily_spending/widgets/grouped_transaction_list.dart';
-import 'package:daily_spending/widgets/pie_chart_widgets/pie_summary_list.dart';
 
 class WeeklySpendings extends StatefulWidget {
   @override
@@ -132,7 +131,6 @@ class _WeeklySpendingsState extends State<WeeklySpendings> {
   ) {
     return Column(
       children: [
-        PieSummaryList(pieData: recentData),
         Card(
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(

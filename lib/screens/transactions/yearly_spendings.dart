@@ -6,7 +6,6 @@ import 'package:daily_spending/screens/statistics/pie_chart.dart';
 import 'package:daily_spending/screens/statistics/yearly_stats.dart';
 import 'package:daily_spending/widgets/no_trancaction.dart';
 import 'package:daily_spending/widgets/grouped_transaction_list.dart';
-import 'package:daily_spending/widgets/pie_chart_widgets/pie_summary_list.dart';
 
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -200,7 +199,6 @@ class _YearlySpendingsState extends State<YearlySpendings> {
   ) {
     return Column(
       children: [
-        PieSummaryList(pieData: yearlyData),
         Card(
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.all(
