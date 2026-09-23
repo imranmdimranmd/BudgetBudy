@@ -127,8 +127,8 @@ class _MyPieChartState extends State<MyPieChart> {
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
-        ...entries.map(
-          (entry) => InkWell(
+        for (final entry in entries)
+          InkWell(
             onTap: () {
               Navigator.of(dialogContext).pop();
               _openTransactionList(entry.key, entry.value);
@@ -160,7 +160,6 @@ class _MyPieChartState extends State<MyPieChart> {
               ],
             ),
           ),
-        ),
       ],
     );
   }
