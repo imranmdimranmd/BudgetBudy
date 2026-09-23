@@ -3,6 +3,7 @@ name: build-apk
 on:
   push:
     branches:
+      - 'main'
       - 'mobile-uploads'
     paths-ignore:
       - '**.zip'
