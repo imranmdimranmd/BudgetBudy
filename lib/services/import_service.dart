@@ -65,6 +65,11 @@ class ImportService {
         continue;
       }
 
+      await DBHelper.insertCategory(category);
+      if (subcategory.isNotEmpty) {
+        await DBHelper.insertSubcategory(category, subcategory);
+      }
+
       final transaction = Transaction(
         id: '${date.microsecondsSinceEpoch}_$r',
         title: name,
@@ -81,10 +86,6 @@ class ImportService {
       }
 
       await DBHelper.insert(transaction);
-      await DBHelper.insertCategory(category);
-      if (subcategory.isNotEmpty) {
-        await DBHelper.insertSubcategory(category, subcategory);
-      }
       imported++;
     }
 

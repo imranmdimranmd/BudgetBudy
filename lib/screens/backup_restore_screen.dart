@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
 
+import '../models/categories.dart';
 import '../models/transaction.dart';
 import '../services/export_service.dart';
 import '../services/import_service.dart';
@@ -50,11 +51,14 @@ class _BackupRestoreScreenState extends State<BackupRestoreScreen> {
     try {
       final transactionsProvider =
           Provider.of<Transactions>(context, listen: false);
+      final categoriesProvider =
+          Provider.of<Categories>(context, listen: false);
       final summary = await ImportService.importTransactionsFromExcel(
         path,
         transactionsProvider.transactions,
       );
       await transactionsProvider.fetchTransactions();
+      await categoriesProvider.load();
 
       if (!mounted) return;
       final messageParts = <String>[
