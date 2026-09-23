@@ -1,116 +1,284 @@
-import 'package:flutter/material.dart' hide Category;
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../providers/expense_provider.dart';
-import '../models/category.dart';
+import '../models/categories.dart';
+import '../models/transaction.dart';
 
-class CategoriesScreen extends StatelessWidget {
-  const CategoriesScreen({super.key});
+class CategoriesScreen extends StatefulWidget {
+  static const routeName = '/categories';
 
-  Future<void> _addCategoryDialog(BuildContext context, ExpenseProvider provider) async {
-    final controller = TextEditingController();
-    await showDialog(
+  const CategoriesScreen({Key? key}) : super(key: key);
+
+  @override
+  State<CategoriesScreen> createState() => _CategoriesScreenState();
+}
+
+class _CategoriesScreenState extends State<CategoriesScreen> {
+  final _controller = TextEditingController();
+  final Map<String, TextEditingController> _subControllers = {};
+
+  TextEditingController _subControllerFor(String category) {
+    return _subControllers.putIfAbsent(category, () => TextEditingController());
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    for (final controller in _subControllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _addCategory() async {
+    final name = _controller.text.trim();
+    if (name.isEmpty) return;
+
+    final success = await context.read<Categories>().add(name);
+    if (!mounted) return;
+
+    if (success) {
+      _controller.clear();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Category added')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Category already exists or is invalid')),
+      );
+    }
+  }
+
+  Future<void> _addSubcategory(String category) async {
+    final controller = _subControllerFor(category);
+    final name = controller.text.trim();
+    if (name.isEmpty) return;
+
+    final success = await context.read<Categories>().addSubcategory(category, name);
+    if (!mounted) return;
+
+    if (success) {
+      controller.clear();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Subcategory already exists or is invalid')),
+      );
+    }
+  }
+
+  Future<String?> _promptForName({
+    required String title,
+    required String initialValue,
+  }) {
+    final controller = TextEditingController(text: initialValue);
+    return showDialog<String>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New Category'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Category name'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                provider.addCategory(controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add'),
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: Text(title),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            decoration: const InputDecoration(border: OutlineInputBorder()),
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Future<void> _addSubcategoryDialog(
-    BuildContext context,
-    ExpenseProvider provider,
-    Category category,
-  ) async {
-    final controller = TextEditingController();
-    await showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('New Subcategory in ${category.name}'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Subcategory name'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          FilledButton(
-            onPressed: () {
-              if (controller.text.trim().isNotEmpty) {
-                provider.addSubcategory(category.id!, controller.text.trim());
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
+  Future<void> _editCategory(String category) async {
+    final newName = await _promptForName(
+      title: 'Edit category',
+      initialValue: category,
     );
+    if (newName == null || !mounted) return;
+
+    final success = await context.read<Categories>().update(category, newName);
+    if (!mounted) return;
+
+    if (success) {
+      // The rename cascades to the categories/subcategories tables in the
+      // database, including every transaction already filed under the old
+      // name. Re-fetch transactions so the app's in-memory copy picks up
+      // the updated category text too.
+      await context.read<Transactions>().fetchTransactions();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Category updated')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('Could not rename category (name already used?)')),
+      );
+    }
+  }
+
+  Future<void> _editSubcategory(String category, String subcategory) async {
+    final newName = await _promptForName(
+      title: 'Edit subcategory',
+      initialValue: subcategory,
+    );
+    if (newName == null || !mounted) return;
+
+    final success = await context
+        .read<Categories>()
+        .updateSubcategory(category, subcategory, newName);
+    if (!mounted) return;
+
+    if (success) {
+      await context.read<Transactions>().fetchTransactions();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Subcategory updated')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content:
+                Text('Could not rename subcategory (name already used?)')),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final provider = context.watch<ExpenseProvider>();
-
     return Scaffold(
       appBar: AppBar(title: const Text('Categories')),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addCategoryDialog(context, provider),
-        child: const Icon(Icons.add),
-      ),
-      body: provider.categories.isEmpty
-          ? const Center(child: Text('No categories yet. Tap + to add one.'))
-          : ListView.builder(
-              itemCount: provider.categories.length,
-              itemBuilder: (context, index) {
-                final category = provider.categories[index];
-                final subcategories = provider.subcategoriesFor(category.id!);
-                return ExpansionTile(
-                  title: Text(category.name),
-                  trailing: IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => provider.deleteCategory(category.id!),
-                  ),
+      body: Consumer<Categories>(
+        builder: (context, categories, child) {
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
                   children: [
-                    ...subcategories.map(
-                      (sub) => ListTile(
-                        title: Text(sub.name),
-                        contentPadding: const EdgeInsets.only(left: 32, right: 16),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete_outline, size: 20),
-                          onPressed: () => provider.deleteSubcategory(sub.id!),
+                    Expanded(
+                      child: TextField(
+                        controller: _controller,
+                        textCapitalization: TextCapitalization.words,
+                        decoration: const InputDecoration(
+                          labelText: 'New category',
+                          hintText: 'e.g. Subscriptions',
+                          border: OutlineInputBorder(),
                         ),
+                        onSubmitted: (_) => _addCategory(),
                       ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, bottom: 8),
-                      child: TextButton.icon(
-                        onPressed: () => _addSubcategoryDialog(context, provider, category),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add subcategory'),
-                      ),
+                    const SizedBox(width: 10),
+                    IconButton(
+                      tooltip: 'Add category',
+                      onPressed: _addCategory,
+                      icon: const Icon(Icons.add_circle),
                     ),
                   ],
-                );
-              },
-            ),
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: categories.categories.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final category = categories.categories[index];
+                    final subcategories = categories.subcategoriesFor(category);
+                    return ExpansionTile(
+                      leading: const Icon(Icons.label_outline),
+                      title: Text(category),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // 'Other' is the hard-coded fallback category used
+                          // elsewhere when adding a transaction, so it isn't
+                          // renamed or removed from here.
+                          if (category != 'Other') ...[
+                            IconButton(
+                              tooltip: 'Edit category',
+                              icon: const Icon(Icons.edit_outlined),
+                              onPressed: () => _editCategory(category),
+                            ),
+                            IconButton(
+                              tooltip: 'Delete category',
+                              icon: const Icon(Icons.delete_outline),
+                              onPressed: () async {
+                                await categories.remove(category);
+                              },
+                            ),
+                          ],
+                        ],
+                      ),
+                      children: [
+                        ...subcategories.map(
+                          (subcategory) => ListTile(
+                            dense: true,
+                            leading: const Icon(Icons.subdirectory_arrow_right),
+                            title: Text(subcategory),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  tooltip: 'Edit subcategory',
+                                  icon: const Icon(Icons.edit_outlined,
+                                      size: 18),
+                                  onPressed: () =>
+                                      _editSubcategory(category, subcategory),
+                                ),
+                                IconButton(
+                                  tooltip: 'Delete subcategory',
+                                  icon: const Icon(Icons.close, size: 18),
+                                  onPressed: () async {
+                                    await categories.removeSubcategory(
+                                        category, subcategory);
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: _subControllerFor(category),
+                                  textCapitalization: TextCapitalization.words,
+                                  decoration: const InputDecoration(
+                                    labelText: 'New subcategory',
+                                    isDense: true,
+                                  ),
+                                  onSubmitted: (_) => _addSubcategory(category),
+                                ),
+                              ),
+                              IconButton(
+                                tooltip: 'Add subcategory',
+                                onPressed: () => _addSubcategory(category),
+                                icon: const Icon(Icons.add_circle_outline),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
