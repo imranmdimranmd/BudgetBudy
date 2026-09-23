@@ -147,7 +147,10 @@ class _MyPieChartState extends State<MyPieChart> {
             alignment: Alignment.centerRight,
             child: IconButton(
               tooltip: 'View category and subcategory amounts',
-              color: Colors.white,
+              style: IconButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Colors.white,
+              ),
               icon: const Icon(Icons.info_outline),
               onPressed: canDrillDown ? _showDetails : null,
             ),
