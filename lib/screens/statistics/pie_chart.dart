@@ -43,37 +43,41 @@ class _MyPieChartState extends State<MyPieChart> {
       return subcategory == sliceName;
     }).toList();
 
+    _openTransactionList(sliceName, filtered);
+  }
+
+  void _openTransactionList(String title, List<Transaction> transactions) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => CategoryTransactionsScreen(
-          title: sliceName,
-          transactions: filtered,
+          title: title,
+          transactions: transactions,
         ),
       ),
     );
   }
 
-  Map<String, int> _amountsBy(
+  Map<String, List<Transaction>> _transactionsBy(
     Iterable<Transaction> transactions,
     String Function(Transaction transaction) keyFor,
   ) {
-    final amounts = <String, int>{};
+    final grouped = <String, List<Transaction>>{};
     for (final transaction in transactions) {
       final key = keyFor(transaction);
-      amounts[key] = (amounts[key] ?? 0) + transaction.amount;
+      grouped.putIfAbsent(key, () => []).add(transaction);
     }
-    return amounts;
+    return grouped;
   }
 
   void _showDetails() {
     final transactions = widget.sourceTransactions;
     if (transactions == null || transactions.isEmpty) return;
 
-    final categoryAmounts = _amountsBy(
+    final categoryTransactions = _transactionsBy(
       transactions,
       (transaction) => transaction.category,
     );
-    final subcategoryAmounts = _amountsBy(
+    final subcategoryTransactions = _transactionsBy(
       transactions,
       (transaction) => transaction.subcategory?.trim().isNotEmpty == true
           ? transaction.subcategory!
@@ -90,9 +94,13 @@ class _MyPieChartState extends State<MyPieChart> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _detailsSection('Categories', categoryAmounts),
+                _detailsSection('Categories', categoryTransactions, context),
                 const SizedBox(height: 20),
-                _detailsSection('Subcategories', subcategoryAmounts),
+                _detailsSection(
+                  'Subcategories',
+                  subcategoryTransactions,
+                  context,
+                ),
               ],
             ),
           ),
@@ -107,23 +115,47 @@ class _MyPieChartState extends State<MyPieChart> {
     );
   }
 
-  Widget _detailsSection(String title, Map<String, int> amounts) {
-    final entries = amounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
+  Widget _detailsSection(
+    String title,
+    Map<String, List<Transaction>> groupedTransactions,
+    BuildContext dialogContext,
+  ) {
+    final entries = groupedTransactions.entries.toList()
+      ..sort((a, b) => _total(b.value).compareTo(_total(a.value)));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         const SizedBox(height: 6),
         ...entries.map(
-          (entry) => Padding(
-            padding: const EdgeInsets.symmetric(vertical: 3),
-            child: Row(
-              children: [
-                Expanded(child: Text(entry.key)),
-                Text(
-                  '₹${entry.value}',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+          (entry) => InkWell(
+            onTap: () {
+              Navigator.of(dialogContext).pop();
+              _openTransactionList(entry.key, entry.value);
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      entry.key,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  Text('₹${_total(entry.value)}'),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'View transactions',
+                    style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  const Icon(Icons.open_in_new, size: 16),
                 ),
               ],
             ),
@@ -132,6 +164,9 @@ class _MyPieChartState extends State<MyPieChart> {
       ],
     );
   }
+
+  int _total(List<Transaction> transactions) =>
+      transactions.fold(0, (sum, transaction) => sum + transaction.amount);
 
   @override
   Widget build(BuildContext context) {
