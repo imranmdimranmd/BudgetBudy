@@ -3,6 +3,7 @@ name: Import ZIP on Same Branch
 on:
   push:
     branches:
+      - mobile-uploads
       - main
     paths:
       - '**.zip'

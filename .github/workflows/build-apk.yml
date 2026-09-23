@@ -3,9 +3,7 @@ name: build-apk
 on:
   push:
     branches:
-      - main
-    paths-ignore:
-      - '**.zip'
+      - import/mobile-upload-20260920-173223-1
   workflow_dispatch:
 
 jobs:
