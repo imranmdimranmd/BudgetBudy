@@ -8,7 +8,7 @@ import 'package:path/path.dart' as path;
 
 class DBHelper {
   static const _databaseName = 'spendings.db';
-  static const _databaseVersion = 3;
+  static const _databaseVersion = 5;
 
   static Future<sql.Database> getDatabase() async {
     final dbPath = await sql.getDatabasesPath();
@@ -27,13 +27,15 @@ class DBHelper {
           'amount INTEGER,'
           'date TEXT,'
           'category TEXT,'
-          'subcategory TEXT)',
+          'subcategory TEXT,'
+          "type TEXT NOT NULL DEFAULT 'expense')",
         );
 
         await _createCategoriesTable(db);
         await _seedDefaultCategories(db);
         await _createSubcategoriesTable(db);
         await _seedDefaultSubcategories(db);
+        await _createBudgetsTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -49,6 +51,23 @@ class DBHelper {
           await _createSubcategoriesTable(db);
           await _seedDefaultSubcategories(db);
         }
+        if (oldVersion < 4) {
+          try {
+            await db.execute(
+                'ALTER TABLE categories ADD COLUMN sortOrder INTEGER NOT NULL DEFAULT 0');
+          } catch (_) {}
+          try {
+            await db.execute(
+                'ALTER TABLE subcategories ADD COLUMN sortOrder INTEGER NOT NULL DEFAULT 0');
+          } catch (_) {}
+          try {
+            await db.execute(
+                "ALTER TABLE transactions ADD COLUMN type TEXT NOT NULL DEFAULT 'expense'");
+          } catch (_) {}
+        }
+        if (oldVersion < 5) {
+          await _createBudgetsTable(db);
+        }
       },
     );
   }
@@ -58,7 +77,8 @@ class DBHelper {
       CREATE TABLE IF NOT EXISTS categories (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL UNIQUE,
-        isDefault INTEGER NOT NULL DEFAULT 0
+        isDefault INTEGER NOT NULL DEFAULT 0,
+        sortOrder INTEGER NOT NULL DEFAULT 0
       )
     ''');
   }
@@ -80,6 +100,7 @@ class DBHelper {
         category TEXT NOT NULL,
         name TEXT NOT NULL,
         isDefault INTEGER NOT NULL DEFAULT 0,
+        sortOrder INTEGER NOT NULL DEFAULT 0,
         UNIQUE(category, name)
       )
     ''');
@@ -102,7 +123,7 @@ class DBHelper {
     final rows = await db.query(
       'categories',
       columns: ['name'],
-      orderBy: 'isDefault DESC, name COLLATE NOCASE',
+      orderBy: 'sortOrder, isDefault DESC, name COLLATE NOCASE',
     );
     return rows.map((row) => row['name'] as String).toList();
   }
@@ -111,7 +132,7 @@ class DBHelper {
     final db = await DBHelper.getDatabase();
     return db.insert(
       'categories',
-      {'name': name.trim(), 'isDefault': 0},
+      {'name': name.trim(), 'isDefault': 0, 'sortOrder': 999999},
       conflictAlgorithm: sql.ConflictAlgorithm.ignore,
     );
   }
@@ -175,7 +196,7 @@ class DBHelper {
       columns: ['name'],
       where: 'category = ?',
       whereArgs: [category],
-      orderBy: 'isDefault DESC, name COLLATE NOCASE',
+      orderBy: 'sortOrder, isDefault DESC, name COLLATE NOCASE',
     );
     return rows.map((row) => row['name'] as String).toList();
   }
@@ -184,7 +205,7 @@ class DBHelper {
     final db = await DBHelper.getDatabase();
     return db.insert(
       'subcategories',
-      {'category': category, 'name': name.trim(), 'isDefault': 0},
+      {'category': category, 'name': name.trim(), 'isDefault': 0, 'sortOrder': 999999},
       conflictAlgorithm: sql.ConflictAlgorithm.ignore,
     );
   }
@@ -244,6 +265,66 @@ class DBHelper {
       transaction.toMap(transaction),
       conflictAlgorithm: sql.ConflictAlgorithm.replace,
     );
+  }
+
+  static Future<void> updateCategoryOrder(List<String> categories) async {
+    final db = await DBHelper.getDatabase();
+    await db.transaction((txn) async {
+      for (var index = 0; index < categories.length; index++) {
+        await txn.update('categories', {'sortOrder': index},
+            where: 'name = ?', whereArgs: [categories[index]]);
+      }
+    });
+  }
+
+  static Future<void> updateSubcategoryOrder(
+      String category, List<String> subcategories) async {
+    final db = await DBHelper.getDatabase();
+    await db.transaction((txn) async {
+      for (var index = 0; index < subcategories.length; index++) {
+        await txn.update('subcategories', {'sortOrder': index},
+            where: 'category = ? AND name = ?',
+            whereArgs: [category, subcategories[index]]);
+      }
+    });
+  }
+
+  static Future<void> _createBudgetsTable(sql.Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category TEXT NOT NULL,
+        subcategory TEXT,
+        month INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        UNIQUE(category, subcategory, month, year)
+      )
+    ''');
+  }
+
+  static Future<List<Map<String, dynamic>>> fetchBudgets(
+      int month, int year) async {
+    final db = await DBHelper.getDatabase();
+    return db.query('budgets', where: 'month = ? AND year = ?',
+        whereArgs: [month, year], orderBy: 'category, subcategory');
+  }
+
+  static Future<void> saveBudget({required String category, String? subcategory,
+      required int month, required int year, required int amount}) async {
+    final db = await DBHelper.getDatabase();
+    await db.insert('budgets', {
+      'category': category,
+      'subcategory': subcategory,
+      'month': month,
+      'year': year,
+      'amount': amount,
+    }, conflictAlgorithm: sql.ConflictAlgorithm.replace);
+  }
+
+  static Future<void> deleteBudget(int id) async {
+    final db = await DBHelper.getDatabase();
+    await db.delete('budgets', where: 'id = ?', whereArgs: [id]);
   }
 
   // Retrieving transaction data.

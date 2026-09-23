@@ -10,6 +10,7 @@ class Transaction {
   final DateTime date;
   final String category;
   final String? subcategory;
+  final bool isIncome;
 
   const Transaction(
       {required this.id,
@@ -17,7 +18,8 @@ class Transaction {
       required this.amount,
       required this.date,
       required this.category,
-      this.subcategory});
+      this.subcategory,
+      this.isIncome = false});
 
   Map<String, dynamic> toMap(Transaction t) {
     return {
@@ -27,6 +29,7 @@ class Transaction {
       'date': t.date.toIso8601String(),
       'category': t.category,
       'subcategory': t.subcategory,
+      'type': t.isIncome ? 'income' : 'expense',
     };
   }
 }
@@ -39,15 +42,17 @@ class Transactions with ChangeNotifier {
   }
 
   int getTotal(List<Transaction> transaction) {
-    var total = 0;
-    if (transaction.isEmpty) {
-      return total;
-    }
-    transaction.forEach((item) {
-      total += item.amount;
-    });
-    return total;
+    return transaction
+        .where((item) => !item.isIncome)
+        .fold(0, (sum, item) => sum + item.amount);
   }
+
+    int getTotalIncome(List<Transaction> transaction) => transaction
+      .where((item) => item.isIncome)
+      .fold(0, (sum, item) => sum + item.amount);
+
+    List<Transaction> get expenses =>
+      _transactions.where((item) => !item.isIncome).toList();
 
   void addTransactions(Transaction transaction) {
     _transactions.add(transaction);
@@ -66,6 +71,7 @@ class Transactions with ChangeNotifier {
 
   List<Transaction> monthlyTransactions(String month, String year) {
     return _transactions.where((trx) {
+      if (trx.isIncome) return false;
       if (DateFormat('yyyy')
                   .format(DateTime.parse(trx.date.toIso8601String())) ==
               year &&
@@ -80,6 +86,7 @@ class Transactions with ChangeNotifier {
 
   List<Transaction> yearlyTransactions(String year) {
     return _transactions.where((trx) {
+      if (trx.isIncome) return false;
       if (DateFormat('yyyy')
               .format(DateTime.parse(trx.date.toIso8601String())) ==
           year) {
@@ -91,6 +98,7 @@ class Transactions with ChangeNotifier {
 
   List<Transaction> dailyTransactions() {
     return _transactions.where((trx) {
+      if (trx.isIncome) return false;
       if (DateTime.now().day ==
               DateTime.parse(trx.date.toIso8601String()).day &&
           DateTime.now().month ==
@@ -105,6 +113,7 @@ class Transactions with ChangeNotifier {
 
   List<Transaction> get rescentTransactions {
     return transactions.where((tx) {
+      if (tx.isIncome) return false;
       return tx.date.isAfter(DateTime.now().subtract(
         Duration(days: 7),
       ));
@@ -124,6 +133,7 @@ class Transactions with ChangeNotifier {
             ),
             category: item['category'],
             subcategory: item['subcategory'] as String?,
+            isIncome: item['type'] == 'income',
           ),
         )
         .toList();

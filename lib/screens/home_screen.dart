@@ -6,8 +6,8 @@ import '../models/transaction.dart';
 import './transactions/daily_spendings.dart';
 import './transactions/monthly_spendings.dart';
 import './transactions/yearly_spendings.dart';
-import '../widgets/app_drawer.dart';
 import './new_transaction.dart';
+import '../widgets/app_drawer.dart';
 import './transactions/weekly_spendings.dart';
 import '../widgets/dashboard_summary_cards.dart';
 
@@ -41,12 +41,6 @@ class _HomeScreenState extends State<HomeScreen>
           "Home",
           style: Theme.of(context).appBarTheme.titleTextStyle,
         ),
-        actions: <Widget>[
-          IconButton(
-              icon: Icon(Icons.add),
-              onPressed: () =>
-                  Navigator.of(context).pushNamed(NewTransaction.routeName)),
-        ],
         bottom: new TabBar(
           unselectedLabelColor: Colors.grey,
           labelColor: Colors.black,
@@ -99,6 +93,11 @@ class _HomeScreenState extends State<HomeScreen>
         builder: (context, trx, child) {
           return AppDrawer(total: trx.getTotal(trx.transactions));
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.of(context).pushNamed(NewTransaction.routeName),
+        tooltip: 'Add transaction',
+        child: const Icon(Icons.add),
       ),
     );
   }

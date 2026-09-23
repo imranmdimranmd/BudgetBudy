@@ -188,14 +188,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 ),
               ),
               Expanded(
-                child: ListView.separated(
+                child: ReorderableListView.builder(
                   itemCount: categories.categories.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  onReorder: (oldIndex, newIndex) async {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    await categories.moveCategory(
+                        oldIndex, newIndex - oldIndex);
+                  },
                   itemBuilder: (context, index) {
                     final category = categories.categories[index];
                     final subcategories = categories.subcategoriesFor(category);
                     return ExpansionTile(
-                      leading: const Icon(Icons.label_outline),
+                      key: ValueKey('category-$category'),
+                      leading: ReorderableDragStartListener(
+                        index: index,
+                        child: const Icon(Icons.drag_indicator),
+                      ),
                       title: Text(category),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -220,32 +228,47 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                         ],
                       ),
                       children: [
-                        ...subcategories.map(
-                          (subcategory) => ListTile(
-                            dense: true,
-                            leading: const Icon(Icons.subdirectory_arrow_right),
-                            title: Text(subcategory),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  tooltip: 'Edit subcategory',
-                                  icon: const Icon(Icons.edit_outlined,
-                                      size: 18),
-                                  onPressed: () =>
-                                      _editSubcategory(category, subcategory),
-                                ),
-                                IconButton(
-                                  tooltip: 'Delete subcategory',
-                                  icon: const Icon(Icons.close, size: 18),
-                                  onPressed: () async {
-                                    await categories.removeSubcategory(
-                                        category, subcategory);
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
+                        ReorderableListView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          itemCount: subcategories.length,
+                          onReorder: (oldIndex, newIndex) async {
+                            if (newIndex > oldIndex) newIndex -= 1;
+                            await categories.moveSubcategory(
+                                category, oldIndex, newIndex - oldIndex);
+                          },
+                          itemBuilder: (context, subIndex) {
+                            final subcategory = subcategories[subIndex];
+                            return ListTile(
+                              key: ValueKey('subcategory-$category-$subcategory'),
+                              dense: true,
+                              leading: ReorderableDragStartListener(
+                                index: subIndex,
+                                child: const Icon(Icons.drag_indicator, size: 20),
+                              ),
+                              title: Text(subcategory),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Edit subcategory',
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 18),
+                                    onPressed: () =>
+                                        _editSubcategory(category, subcategory),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Delete subcategory',
+                                    icon: const Icon(Icons.close, size: 18),
+                                    onPressed: () async {
+                                      await categories.removeSubcategory(
+                                          category, subcategory);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
                         ),
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),

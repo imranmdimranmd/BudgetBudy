@@ -9,8 +9,10 @@ import 'package:daily_spending/models/categories.dart';
 class NewTransaction extends StatefulWidget {
   static const routeName = '/new-transaction';
   final Transaction? existingTransaction;
+  final bool initialIsIncome;
 
-  const NewTransaction({Key? key, this.existingTransaction}) : super(key: key);
+  const NewTransaction({Key? key, this.existingTransaction, this.initialIsIncome = false})
+      : super(key: key);
 
   @override
   _NewTransactionState createState() => _NewTransactionState();
@@ -23,6 +25,7 @@ class _NewTransactionState extends State<NewTransaction> {
   late Transactions transactions;
   String dropdownValue = 'Other';
   String? subcategoryValue;
+  bool _isIncome = false;
 
   bool get _isEditing => widget.existingTransaction != null;
 
@@ -46,6 +49,7 @@ class _NewTransactionState extends State<NewTransaction> {
   void initState() {
     super.initState();
     transactions = Provider.of<Transactions>(context, listen: false);
+    _isIncome = widget.initialIsIncome;
 
     final existing = widget.existingTransaction;
     if (existing != null) {
@@ -54,6 +58,7 @@ class _NewTransactionState extends State<NewTransaction> {
       _selectedDate = existing.date;
       dropdownValue = existing.category;
       subcategoryValue = existing.subcategory;
+      _isIncome = existing.isIncome;
     }
   }
 
@@ -92,6 +97,16 @@ class _NewTransactionState extends State<NewTransaction> {
                 //onChanged: (value) => inputAmount = value,
                 controller: inputAmountController,
                 keyboardType: TextInputType.number,
+              ),
+              SizedBox(height: 10),
+              SegmentedButton<bool>(
+                segments: const [
+                  ButtonSegment(value: false, label: Text('Expense')),
+                  ButtonSegment(value: true, label: Text('Income')),
+                ],
+                selected: {_isIncome},
+                onSelectionChanged: (selection) =>
+                    setState(() => _isIncome = selection.first),
               ),
               SizedBox(height: 10),
               dropDownToSelectMonth(context),
@@ -150,6 +165,7 @@ class _NewTransactionState extends State<NewTransaction> {
                           date: _selectedDate,
                           category: dropdownValue,
                           subcategory: subcategoryValue,
+                          isIncome: _isIncome,
                         ),
                       );
                       Navigator.of(context).pop();
@@ -164,6 +180,7 @@ class _NewTransactionState extends State<NewTransaction> {
                         date: _selectedDate,
                         category: dropdownValue,
                         subcategory: subcategoryValue,
+                          isIncome: _isIncome,
                       ),
                     );
                     //Navigator.of(context).pop();
@@ -173,6 +190,7 @@ class _NewTransactionState extends State<NewTransaction> {
                       // _selectedDate = DateTime.now();
                       dropdownValue = 'Other';
                       subcategoryValue = null;
+                      _isIncome = false;
                     });
                     ScaffoldMessenger.of(context).hideCurrentSnackBar();
                     ScaffoldMessenger.of(context).showSnackBar(

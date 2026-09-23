@@ -7,6 +7,7 @@ import 'package:daily_spending/models/transaction.dart';
 import 'package:daily_spending/screens/statistics/pie_chart.dart';
 import 'package:daily_spending/widgets/no_trancaction.dart';
 import 'package:daily_spending/widgets/grouped_transaction_list.dart';
+import 'package:daily_spending/widgets/pie_chart_widgets/pie_summary_list.dart';
 
 class DailySpendings extends StatefulWidget {
   @override
@@ -105,15 +106,17 @@ class _DailySpendingsState extends State<DailySpendings> {
           dailyTrans.isEmpty
               ? NoTransactions()
               : (_showChart
-                  ? MyPieChart(
-                      pieData: dailyData,
-                      sourceTransactions: dailyTrans,
-                      byCategory: _byCategory,
+                  ? Column(
+                      children: [
+                      PieSummaryList(pieData: dailyData),
+                        MyPieChart(
+                            pieData: dailyData,
+                            sourceTransactions: dailyTrans,
+                            byCategory: _byCategory),
+                      ],
                     )
                   : GroupedTransactionList(
-                      transactions: dailyTrans,
-                      dltTrxItem: deleteFn,
-                    ))
+                      transactions: dailyTrans, dltTrxItem: deleteFn))
         ],
       ),
     );

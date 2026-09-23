@@ -61,8 +61,8 @@ class _MyPieChartState extends State<MyPieChart> {
     final canDrillDown = widget.sourceTransactions != null;
 
     return Container(
-      width: screenWidht * 0.95,
-      height: MediaQuery.of(context).size.height * 0.7,
+      width: double.infinity,
+      height: 430,
       child: Column(
         children: <Widget>[
           Expanded(
@@ -98,18 +98,14 @@ class _MyPieChartState extends State<MyPieChart> {
               ),
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: IndicatorsWidget(
-                  pieData: widget.pieData,
-                  onTap: canDrillDown ? _openTransactionsFor : null,
-                ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(8),
+              child: IndicatorsWidget(
+                pieData: widget.pieData,
+                onTap: canDrillDown ? _openTransactionsFor : null,
               ),
-            ],
+            ),
           ),
         ],
       ),

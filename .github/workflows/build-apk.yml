@@ -3,14 +3,10 @@ name: build-apk
 on:
   push:
     branches:
-      - 'main'
-      - 'mobile-uploads'
+      - main
     paths-ignore:
       - '**.zip'
   workflow_dispatch:
-
-permissions:
-  contents: read
 
 jobs:
   build-apk:
@@ -20,9 +16,6 @@ jobs:
       # 1. Download source code
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: false
 
       # 2. Install Java 17
       - name: Setup Java
@@ -63,17 +56,11 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release
 
-      # 8. Zip the built APK
-      - name: Zip APK
-        run: |
-          cd build/app/outputs/flutter-apk
-          zip -r BudgetBudy-release-apk.zip app-release.apk
-
-      # 9. Upload the zipped APK
-      - name: Upload APK zip
+      # 8. Upload the built APK directly
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BudgetBudy-APK-zip
-          path: build/app/outputs/flutter-apk/BudgetBudy-release-apk.zip
+          name: BudgetBudy-release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 30

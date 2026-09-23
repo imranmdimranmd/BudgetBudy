@@ -1,7 +1,8 @@
 import 'package:daily_spending/screens/home_screen.dart';
-import 'package:daily_spending/screens/party_list_screen.dart';
 import 'package:daily_spending/screens/categories_screen.dart';
 import 'package:daily_spending/screens/backup_restore_screen.dart';
+import 'package:daily_spending/screens/budgets_screen.dart';
+import 'package:daily_spending/screens/income_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -48,13 +49,14 @@ class AppDrawer extends StatelessWidget {
                     },
                   ),
                   ListTile(
-                    leading: const Icon(Icons.book),
-                    title: const Text("Khatabook"),
-                    onTap: () {
-                      Navigator.of(context).pushReplacementNamed(
-                        PartyListScreen.routeName,
-                      );
-                    },
+                    leading: const Icon(Icons.account_balance_wallet_outlined),
+                    title: const Text("Budgets"),
+                    onTap: () => Navigator.of(context).pushNamed(BudgetsScreen.routeName),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.trending_up),
+                    title: const Text("Income"),
+                    onTap: () => Navigator.of(context).pushNamed(IncomeScreen.routeName),
                   ),
                   ListTile(
                     leading: const Icon(Icons.backup_outlined),

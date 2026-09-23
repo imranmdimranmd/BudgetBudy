@@ -5,6 +5,7 @@ import 'package:daily_spending/models/transaction.dart';
 import 'package:daily_spending/screens/statistics/pie_chart.dart';
 import 'package:daily_spending/widgets/no_trancaction.dart';
 import 'package:daily_spending/widgets/grouped_transaction_list.dart';
+import 'package:daily_spending/widgets/pie_chart_widgets/pie_summary_list.dart';
 
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -104,15 +105,17 @@ class _MonthlySpendingsState extends State<MonthlySpendings> {
           monthlyTrans.isEmpty
               ? NoTransactions()
               : (_showChart
-                  ? MyPieChart(
-                      pieData: monthlyData,
-                      sourceTransactions: monthlyTrans,
-                      byCategory: _byCategory,
+                  ? Column(
+                      children: [
+                      PieSummaryList(pieData: monthlyData),
+                        MyPieChart(
+                            pieData: monthlyData,
+                            sourceTransactions: monthlyTrans,
+                            byCategory: _byCategory),
+                      ],
                     )
                   : GroupedTransactionList(
-                      transactions: monthlyTrans,
-                      dltTrxItem: deleteFn,
-                    )),
+                      transactions: monthlyTrans, dltTrxItem: deleteFn)),
         ],
       ),
     );

@@ -7,8 +7,9 @@ import './screens/new_transaction.dart';
 import './models/transaction.dart';
 import './models/categories.dart';
 import './screens/categories_screen.dart';
-import './screens/party_list_screen.dart';
 import './screens/backup_restore_screen.dart';
+import './screens/budgets_screen.dart';
+import './screens/income_screen.dart';
 
 import 'package:provider/provider.dart';
 
@@ -72,8 +73,9 @@ class MyApp extends StatelessWidget {
             routes: {
               HomeScreen.routeName: (_) => HomeScreen(),
               NewTransaction.routeName: (_) => NewTransaction(),
-              PartyListScreen.routeName: (_) => const PartyListScreen(),
               CategoriesScreen.routeName: (_) => const CategoriesScreen(),
+              BudgetsScreen.routeName: (_) => const BudgetsScreen(),
+              IncomeScreen.routeName: (_) => const IncomeScreen(),
               BackupRestoreScreen.routeName: (_) => const BackupRestoreScreen(),
             },
           );

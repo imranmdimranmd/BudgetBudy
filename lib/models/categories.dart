@@ -107,4 +107,29 @@ class Categories with ChangeNotifier {
     _subcategories[category] = await DBHelper.fetchSubcategories(category);
     notifyListeners();
   }
+
+  Future<void> moveCategory(int index, int direction) async {
+    final target = index + direction;
+    if (index < 0 || target < 0 || target >= _categories.length) return;
+    final reordered = [..._categories];
+    final item = reordered.removeAt(index);
+    reordered.insert(target, item);
+    _categories = reordered;
+    await DBHelper.updateCategoryOrder(_categories);
+    notifyListeners();
+  }
+
+  Future<void> moveSubcategory(
+      String category, int index, int direction) async {
+    final items = _subcategories[category];
+    if (items == null) return;
+    final target = index + direction;
+    if (index < 0 || target < 0 || target >= items.length) return;
+    final reordered = [...items];
+    final item = reordered.removeAt(index);
+    reordered.insert(target, item);
+    _subcategories[category] = reordered;
+    await DBHelper.updateSubcategoryOrder(category, reordered);
+    notifyListeners();
+  }
 }
