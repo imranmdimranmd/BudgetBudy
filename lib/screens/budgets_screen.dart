@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../DBhelp/dbhelper.dart';
 import '../models/categories.dart';
+import '../models/transaction.dart';
 
 class BudgetsScreen extends StatefulWidget {
   static const routeName = '/budgets';
@@ -127,26 +128,65 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               future: _budgets,
               builder: (context, snapshot) {
                 final items = snapshot.data ?? const <Map<String, dynamic>>[];
-                if (items.isEmpty) return const Center(child: Text('No budgets for this month'));
-                return ListView.builder(
-                  itemCount: items.length,
-                  itemBuilder: (context, index) {
-                    final item = items[index];
-                    final label = item['subcategory'] == null
-                        ? item['category']
-                        : '${item['category']} / ${item['subcategory']}';
-                    return ListTile(
-                      title: Text(label as String),
-                      subtitle: Text('Budget: ₹${item['amount']}'),
-                      trailing: IconButton(
-                        tooltip: 'Delete budget',
-                        icon: const Icon(Icons.delete_outline),
-                        onPressed: () async {
-                          await DBHelper.deleteBudget(item['id'] as int);
-                          setState(_reload);
-                        },
-                      ),
-                      onTap: () => _editBudget(existing: item),
+                if (items.isEmpty) {
+                  return const Center(child: Text('No budgets for this month'));
+                }
+
+                return Consumer<Transactions>(
+                  builder: (context, transactionProvider, _) {
+                    final monthTransactions = transactionProvider.transactions
+                        .where((t) =>
+                            !t.isIncome &&
+                            t.date.month == _month.month &&
+                            t.date.year == _month.year)
+                        .toList();
+
+                    int spentFor(Map<String, dynamic> budget) {
+                      final category = budget['category'] as String;
+                      final subcategory = budget['subcategory'] as String?;
+                      return monthTransactions
+                          .where((t) =>
+                              t.category == category &&
+                              (subcategory == null ||
+                                  t.subcategory?.trim() == subcategory))
+                          .fold<int>(0, (sum, t) => sum + t.amount);
+                    }
+
+                    return ListView.builder(
+                      itemCount: items.length,
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        final label = item['subcategory'] == null
+                            ? item['category'] as String
+                            : '${item['category']} / ${item['subcategory']}';
+                        final budgetAmount = item['amount'] as int;
+                        final spent = spentFor(item);
+                        final exceeded = spent > budgetAmount;
+                        final titleColor = exceeded ? Colors.red : null;
+
+                        return ListTile(
+                          title: Text(
+                            label,
+                            style: TextStyle(
+                              color: titleColor,
+                              fontWeight: exceeded ? FontWeight.bold : null,
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Budget: ₹$budgetAmount  •  Spent: ₹$spent',
+                            style: TextStyle(color: exceeded ? Colors.red : null),
+                          ),
+                          trailing: IconButton(
+                            tooltip: 'Delete budget',
+                            icon: const Icon(Icons.delete_outline),
+                            onPressed: () async {
+                              await DBHelper.deleteBudget(item['id'] as int);
+                              setState(_reload);
+                            },
+                          ),
+                          onTap: () => _editBudget(existing: item),
+                        );
+                      },
                     );
                   },
                 );
