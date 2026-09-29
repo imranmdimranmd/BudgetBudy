@@ -58,7 +58,7 @@ class Transactions with ChangeNotifier {
     final thisMonth = _transactions
         .where((t) => t.date.year == now.year && t.date.month == now.month)
         .toList();
-    await ExpenseNotificationService.instance.showSummary(
+    ExpenseNotificationService.instance.showSummary(
       expense: getTotal(thisMonth),
       income: getTotalIncome(thisMonth),
     );
@@ -130,7 +130,7 @@ class Transactions with ChangeNotifier {
         .toList();
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
-    await _refreshNotification();
+    _refreshNotification();
   }
 
   void deleteTransaction(String id) {

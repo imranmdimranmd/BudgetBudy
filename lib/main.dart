@@ -23,7 +23,9 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  await ExpenseNotificationService.instance.initialize(
+  // Not awaited: notification setup must never block the first frame.
+  // Tapping the notification returns to Home, the Transactions screen.
+  ExpenseNotificationService.instance.initialize(
     onTap: () {
       navigatorKey.currentState?.popUntil((route) => route.isFirst);
     },

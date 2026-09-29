@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 
@@ -26,40 +29,51 @@ class ExpenseNotificationService {
   final NumberFormat _money =
       NumberFormat.currency(locale: 'en_IN', symbol: '₹', decimalDigits: 0);
 
-  /// Sets up the plugin. Returns true if the app was cold-started by tapping
-  /// the notification.
-  Future<bool> initialize({required void Function() onTap}) async {
-    const androidSettings =
-        AndroidInitializationSettings('@drawable/ic_stat_budget');
-    const settings = InitializationSettings(android: androidSettings);
+  Future<void>? _initFuture;
 
-    await _notifications.initialize(
-      settings,
-      onDidReceiveNotificationResponse: (response) {
-        if (response.payload == payload) onTap();
-      },
-    );
-
-    final android = _notifications.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-
-    await android?.requestNotificationsPermission();
-
-    const channel = AndroidNotificationChannel(
-      channelId,
-      channelName,
-      description: channelDescription,
-      importance: Importance.low,
-      playSound: false,
-      enableVibration: false,
-      showBadge: false,
-    );
-    await android?.createNotificationChannel(channel);
-
-    final launch = await _notifications.getNotificationAppLaunchDetails();
-    return (launch?.didNotificationLaunchApp ?? false) &&
-        launch?.notificationResponse?.payload == payload;
+  /// Sets up the plugin. Never throws and never waits on the permission
+  /// dialog, so a notification problem can't stop the app from starting.
+  Future<void> initialize({required void Function() onTap}) {
+    return _initFuture ??= _initialize(onTap);
   }
+
+  Future<void> _initialize(void Function() onTap) async {
+    void handle(NotificationResponse response) {
+      if (response.payload == payload) onTap();
+    }
+
+    // Try the dedicated status-bar icon first, fall back to the launcher icon.
+    for (final icon in ['@drawable/ic_stat_budget', '@mipmap/ic_launcher']) {
+      try {
+        await _notifications.initialize(
+          InitializationSettings(android: AndroidInitializationSettings(icon)),
+          onDidReceiveNotificationResponse: handle,
+        );
+        break;
+      } catch (e) {
+        debugPrint('Notification init with $icon failed: $e');
+      }
+    }
+
+    try {
+      final android = _notifications.resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin>();
+      await android?.createNotificationChannel(const AndroidNotificationChannel(
+        channelId,
+        channelName,
+        description: channelDescription,
+        importance: Importance.low,
+        playSound: false,
+        enableVibration: false,
+        showBadge: false,
+      ));
+      // Fire and forget: the system dialog must not block app start-up.
+      unawaited(android?.requestNotificationsPermission());
+    } catch (e) {
+      debugPrint('Notification channel setup failed: $e');
+    }
+  }
+
 
   AndroidNotificationDetails get _details => AndroidNotificationDetails(
         channelId,
@@ -81,6 +95,15 @@ class ExpenseNotificationService {
     required int expense,
     required int income,
   }) async {
+    try {
+      await _initFuture;
+      await _show(expense, income);
+    } catch (e) {
+      debugPrint('Notification update failed: $e');
+    }
+  }
+
+  Future<void> _show(int expense, int income) async {
     final month = DateFormat('MMMM').format(DateTime.now());
     final title = '$month • Expense ${_money.format(expense)}';
     final body =
