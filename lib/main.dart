@@ -10,8 +10,11 @@ import './screens/categories_screen.dart';
 import './screens/backup_restore_screen.dart';
 import './screens/budgets_screen.dart';
 import './screens/income_screen.dart';
+import './services/expense_notification_service.dart';
 
 import 'package:provider/provider.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,9 +23,13 @@ void main() async {
     DeviceOrientation.portraitUp,
   ]);
 
-  runApp(
-    MyApp(),
+  await ExpenseNotificationService.instance.initialize(
+    onTap: () {
+      navigatorKey.currentState?.pushNamed(NewTransaction.routeName);
+    },
   );
+
+  runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
@@ -35,14 +42,14 @@ class MyApp extends StatelessWidget {
         ],
         builder: (context, child) {
           return MaterialApp(
+            navigatorKey: navigatorKey,
             debugShowCheckedModeBanner: false,
             title: 'Money Tracker',
             theme: ThemeData(
-              // Primary brand color
               primaryColor: const Color(0xFFA80852),
               colorScheme: ColorScheme.fromSeed(
                 seedColor: const Color(0xFFA80852),
-                secondary: const Color(0xFF4C6FFF), // subtle blue accent
+                secondary: const Color(0xFF4C6FFF),
               ),
               scaffoldBackgroundColor: const Color(0xFFF1F2F4),
               fontFamily: 'Quicksand',
@@ -50,8 +57,7 @@ class MyApp extends StatelessWidget {
                     headlineLarge: const TextStyle(
                       fontFamily: 'OpenSans',
                       fontSize: 18,
-                      color:
-                          Color(0xFF1D2125), // dark grey instead of pure black
+                      color: Color(0xFF1D2125),
                       fontWeight: FontWeight.bold,
                     ),
                     labelLarge: const TextStyle(
