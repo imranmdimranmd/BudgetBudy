@@ -25,7 +25,7 @@ void main() async {
 
   await ExpenseNotificationService.instance.initialize(
     onTap: () {
-      navigatorKey.currentState?.pushNamed(NewTransaction.routeName);
+      navigatorKey.currentState?.popUntil((route) => route.isFirst);
     },
   );
 

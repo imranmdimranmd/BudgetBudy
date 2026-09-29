@@ -54,9 +54,13 @@ class Transactions with ChangeNotifier {
       _transactions.where((item) => !item.isIncome).toList();
 
   Future<void> _refreshNotification() async {
+    final now = DateTime.now();
+    final thisMonth = _transactions
+        .where((t) => t.date.year == now.year && t.date.month == now.month)
+        .toList();
     await ExpenseNotificationService.instance.showSummary(
-      expense: getTotal(_transactions),
-      income: getTotalIncome(_transactions),
+      expense: getTotal(thisMonth),
+      income: getTotalIncome(thisMonth),
     );
   }
 
