@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
 import '../DBhelp/dbhelper.dart';
+import '../services/expense_notification_service.dart';
 
 class Transaction {
   final String id;
@@ -12,14 +13,15 @@ class Transaction {
   final String? subcategory;
   final bool isIncome;
 
-  const Transaction(
-      {required this.id,
-      required this.title,
-      required this.amount,
-      required this.date,
-      required this.category,
-      this.subcategory,
-      this.isIncome = false});
+  const Transaction({
+    required this.id,
+    required this.title,
+    required this.amount,
+    required this.date,
+    required this.category,
+    this.subcategory,
+    this.isIncome = false,
+  });
 
   Map<String, dynamic> toMap(Transaction t) {
     return {
@@ -37,27 +39,31 @@ class Transaction {
 class Transactions with ChangeNotifier {
   List<Transaction> _transactions = [];
 
-  List<Transaction> get transactions {
-    return [..._transactions];
-  }
+  List<Transaction> get transactions => [..._transactions];
 
-  int getTotal(List<Transaction> transaction) {
-    return transaction
-        .where((item) => !item.isIncome)
-        .fold(0, (sum, item) => sum + item.amount);
-  }
+  int getTotal(List<Transaction> transaction) => transaction
+      .where((item) => !item.isIncome)
+      .fold(0, (sum, item) => sum + item.amount);
 
-    int getTotalIncome(List<Transaction> transaction) => transaction
+  int getTotalIncome(List<Transaction> transaction) => transaction
       .where((item) => item.isIncome)
       .fold(0, (sum, item) => sum + item.amount);
 
-    List<Transaction> get expenses =>
+  List<Transaction> get expenses =>
       _transactions.where((item) => !item.isIncome).toList();
+
+  Future<void> _refreshNotification() async {
+    await ExpenseNotificationService.instance.showSummary(
+      expense: getTotal(_transactions),
+      income: getTotalIncome(_transactions),
+    );
+  }
 
   void addTransactions(Transaction transaction) {
     _transactions.add(transaction);
     notifyListeners();
     DBHelper.insert(transaction);
+    _refreshNotification();
   }
 
   void updateTransaction(Transaction transaction) {
@@ -67,17 +73,14 @@ class Transactions with ChangeNotifier {
     }
     notifyListeners();
     DBHelper.insert(transaction);
+    _refreshNotification();
   }
 
   List<Transaction> monthlyTransactions(String month, String year) {
     return _transactions.where((trx) {
       if (trx.isIncome) return false;
-      if (DateFormat('yyyy')
-                  .format(DateTime.parse(trx.date.toIso8601String())) ==
-              year &&
-          DateFormat('MMM')
-                  .format(DateTime.parse(trx.date.toIso8601String())) ==
-              month) {
+      if (DateFormat('yyyy').format(trx.date) == year &&
+          DateFormat('MMM').format(trx.date) == month) {
         return true;
       }
       return false;
@@ -87,36 +90,21 @@ class Transactions with ChangeNotifier {
   List<Transaction> yearlyTransactions(String year) {
     return _transactions.where((trx) {
       if (trx.isIncome) return false;
-      if (DateFormat('yyyy')
-              .format(DateTime.parse(trx.date.toIso8601String())) ==
-          year) {
-        return true;
-      }
-      return false;
+      return DateFormat('yyyy').format(trx.date) == year;
     }).toList();
   }
 
   List<Transaction> dailyTransactions() {
     return _transactions.where((trx) {
       if (trx.isIncome) return false;
-      if (DateTime.now().day ==
-              DateTime.parse(trx.date.toIso8601String()).day &&
-          DateTime.now().month ==
-              DateTime.parse(trx.date.toIso8601String()).month &&
-          DateTime.now().year ==
-              DateTime.parse(trx.date.toIso8601String()).year) {
-        return true;
-      }
-      return false;
+      return DateUtils.isSameDay(DateTime.now(), trx.date);
     }).toList();
   }
 
   List<Transaction> get rescentTransactions {
     return transactions.where((tx) {
       if (tx.isIncome) return false;
-      return tx.date.isAfter(DateTime.now().subtract(
-        Duration(days: 7),
-      ));
+      return tx.date.isAfter(DateTime.now().subtract(const Duration(days: 7)));
     }).toList();
   }
 
@@ -128,9 +116,7 @@ class Transactions with ChangeNotifier {
             id: item['id'],
             title: item['title'],
             amount: item['amount'],
-            date: DateTime.parse(
-              item['date'],
-            ),
+            date: DateTime.parse(item['date']),
             category: item['category'],
             subcategory: item['subcategory'] as String?,
             isIncome: item['type'] == 'income',
@@ -139,6 +125,7 @@ class Transactions with ChangeNotifier {
         .toList();
     _transactions.sort((a, b) => b.date.compareTo(a.date));
     notifyListeners();
+    await _refreshNotification();
   }
 
   void deleteTransaction(String id) {
@@ -146,12 +133,13 @@ class Transactions with ChangeNotifier {
     _transactions.remove(item);
     notifyListeners();
     DBHelper.delete(id);
+    _refreshNotification();
   }
 
   List<Map<String, Object>> firstSixMonthsTransValues(
       List<Transaction> trans, int year) {
     return List.generate(6, (index) {
-      List<int> months = [
+      final months = [
         DateTime.january,
         DateTime.february,
         DateTime.march,
@@ -159,7 +147,7 @@ class Transactions with ChangeNotifier {
         DateTime.may,
         DateTime.june,
       ];
-      List<String> monthsTitle = [
+      final monthsTitle = [
         'january',
         'february',
         'march',
@@ -168,17 +156,15 @@ class Transactions with ChangeNotifier {
         'june',
       ];
       final perMonth = months[index];
-      final perMonthTitle = monthsTitle[index];
       var totalSum = 0;
       for (var i = 0; i < trans.length; i++) {
         if (trans[i].date.month == perMonth && trans[i].date.year == year) {
           totalSum += trans[i].amount;
         }
       }
-
       return {
         'amount': totalSum.toDouble(),
-        'month': perMonthTitle,
+        'month': monthsTitle[index],
       };
     });
   }
@@ -186,7 +172,7 @@ class Transactions with ChangeNotifier {
   List<Map<String, Object>> lastSixMonthsTransValues(
       List<Transaction> trans, int year) {
     return List.generate(6, (index) {
-      List<int> months = [
+      final months = [
         DateTime.july,
         DateTime.august,
         DateTime.september,
@@ -194,7 +180,7 @@ class Transactions with ChangeNotifier {
         DateTime.november,
         DateTime.december,
       ];
-      List<String> monthsTitle = [
+      final monthsTitle = [
         'july',
         'august',
         'september',
@@ -203,17 +189,15 @@ class Transactions with ChangeNotifier {
         'december',
       ];
       final perMonth = months[index];
-      final perMonthTitle = monthsTitle[index];
       var totalSum = 0;
       for (var i = 0; i < trans.length; i++) {
         if (trans[i].date.month == perMonth && trans[i].date.year == year) {
           totalSum += trans[i].amount;
         }
       }
-
       return {
         'amount': totalSum.toDouble(),
-        'month': perMonthTitle,
+        'month': monthsTitle[index],
       };
     });
   }
